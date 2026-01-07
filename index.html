@@ -1,11 +1,1262 @@
+<!--
+Simple Notes (Single file) — Vanilla HTML/CSS/JS
+Features:
+- Create / Edit / Delete notes
+- Autosave while typing
+- Persist notes in localStorage (works offline)
+- Search notes
+- Dark/Light toggle (saved)
+Shortcuts:
+- Ctrl/Cmd + N = New note
+- Ctrl/Cmd + S = Save now
+- Ctrl/Cmd + F = Focus search
+Open: just double-click this file.
+-->
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Document</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Simple Notes</title>
+    <style>
+      :root {
+        --bg: #0b1220;
+        --panel: rgba(255, 255, 255, 0.06);
+        --border: rgba(255, 255, 255, 0.12);
+        --text: rgba(255, 255, 255, 0.92);
+        --muted: rgba(255, 255, 255, 0.62);
+        --accent: #7c3aed;
+        --ok: #22c55e;
+        --warn: #f59e0b;
+        --danger: #ef4444;
+        --shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
+        --r: 16px;
+        --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto,
+          Helvetica, Arial;
+      }
+      :root[data-theme="light"] {
+        --bg: #f7f7fb;
+        --panel: rgba(15, 23, 42, 0.05);
+        --border: rgba(15, 23, 42, 0.14);
+        --text: rgba(15, 23, 42, 0.92);
+        --muted: rgba(15, 23, 42, 0.62);
+        --shadow: 0 14px 36px rgba(15, 23, 42, 0.12);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        margin: 0;
+        font-family: var(--sans);
+        color: var(--text);
+        background: radial-gradient(
+            900px 650px at 15% 10%,
+            rgba(124, 58, 237, 0.22),
+            transparent 55%
+          ),
+          radial-gradient(
+            900px 650px at 85% 20%,
+            rgba(34, 197, 94, 0.14),
+            transparent 55%
+          ),
+          var(--bg);
+      }
+
+      .app {
+        height: 100%;
+        display: flex;
+        gap: 12px;
+        padding: 12px;
+      }
+      .sidebar {
+        width: 320px;
+        min-width: 280px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        border-radius: var(--r);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .main {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .top {
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .spacer {
+        flex: 1;
+      }
+
+      .title {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+      .logo {
+        width: 34px;
+        height: 34px;
+        border-radius: 12px;
+        background: conic-gradient(
+          from 180deg,
+          var(--accent),
+          #06b6d4,
+          #22c55e,
+          var(--accent)
+        );
+        border: 1px solid rgba(255, 255, 255, 0.18);
+      }
+      .title h1 {
+        margin: 0;
+        font-size: 14px;
+      }
+      .sub {
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .input,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.05);
+        color: inherit;
+        border-radius: 12px;
+        padding: 10px 12px;
+        outline: none;
+        font: inherit;
+      }
+      .input:focus,
+      textarea:focus {
+        box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.22);
+        border-color: rgba(124, 58, 237, 0.55);
+      }
+      textarea {
+        min-height: 380px;
+        resize: none;
+        line-height: 1.55;
+        font-size: 14px;
+      }
+
+      .btn {
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.06);
+        color: inherit;
+        padding: 9px 10px;
+        border-radius: 12px;
+        cursor: pointer;
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        white-space: nowrap;
+        user-select: none;
+      }
+      .btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .btn:active {
+        transform: translateY(1px);
+      }
+      .btn.primary {
+        background: linear-gradient(
+          180deg,
+          rgba(124, 58, 237, 0.95),
+          rgba(124, 58, 237, 0.7)
+        );
+        border-color: rgba(124, 58, 237, 0.75);
+      }
+      .btn.danger {
+        background: linear-gradient(
+          180deg,
+          rgba(239, 68, 68, 0.95),
+          rgba(239, 68, 68, 0.7)
+        );
+        border-color: rgba(239, 68, 68, 0.75);
+      }
+      .btn.icon {
+        width: 40px;
+        justify-content: center;
+        padding: 9px;
+      }
+      .btn[disabled] {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+
+      .list {
+        padding: 6px;
+        overflow: auto;
+        flex: 1;
+      }
+      .item {
+        border: 1px solid transparent;
+        border-radius: 14px;
+        padding: 10px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .item:hover {
+        background: rgba(255, 255, 255, 0.06);
+      }
+      .item[aria-selected="true"] {
+        background: rgba(124, 58, 237, 0.14);
+        border-color: rgba(124, 58, 237, 0.35);
+      }
+      .item .itTitle {
+        font-weight: 800;
+        font-size: 13px;
+        margin: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .item .itPrev {
+        font-size: 12px;
+        color: var(--muted);
+        margin: 0;
+        line-height: 1.35;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+      }
+      .item .itTime {
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.45);
+      }
+      :root[data-theme="light"] .item .itTime {
+        color: rgba(15, 23, 42, 0.45);
+      }
+
+      .bar {
+        border: 1px solid var(--border);
+        background: var(--panel);
+        border-radius: var(--r);
+        box-shadow: var(--shadow);
+        padding: 12px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .panel {
+        border: 1px solid var(--border);
+        background: var(--panel);
+        border-radius: var(--r);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .panelHead {
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .panelHead .left {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex: 1;
+        min-width: 240px;
+      }
+      .saved {
+        font-size: 12px;
+        color: var(--muted);
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.05);
+        padding: 6px 10px;
+        border-radius: 999px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--ok);
+      }
+      .dot.saving {
+        background: var(--warn);
+      }
+      .panelBody {
+        padding: 12px;
+        flex: 1;
+        min-height: 0;
+      }
+
+      .empty {
+        border: 1px dashed var(--border);
+        background: rgba(255, 255, 255, 0.04);
+        border-radius: 14px;
+        padding: 14px;
+        color: var(--muted);
+        margin-bottom: 10px;
+      }
+      .kbd {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--muted);
+      }
+
+      /* Confirm modal */
+      .backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 60;
+        padding: 16px;
+      }
+      .modal {
+        width: min(520px, 100%);
+        border: 1px solid var(--border);
+        background: rgba(15, 23, 42, 0.92);
+        border-radius: 18px;
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        color: var(--text);
+      }
+      :root[data-theme="light"] .modal {
+        background: rgba(255, 255, 255, 0.96);
+      }
+      .modal header {
+        padding: 14px;
+        border-bottom: 1px solid var(--border);
+      }
+      .modal header h2 {
+        margin: 0;
+        font-size: 15px;
+      }
+      .modal header p {
+        margin: 6px 0 0;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .modal .content {
+        padding: 14px;
+        font-size: 13px;
+      }
+      .modal .actions {
+        padding: 14px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+
+      /* Toasts */
+      .toasts {
+        position: fixed;
+        right: 12px;
+        bottom: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 50;
+      }
+      .toast {
+        border: 1px solid var(--border);
+        background: rgba(15, 23, 42, 0.78);
+        padding: 10px 12px;
+        border-radius: 14px;
+        box-shadow: var(--shadow);
+        max-width: 340px;
+        display: flex;
+        gap: 10px;
+        align-items: flex-start;
+      }
+      :root[data-theme="light"] .toast {
+        background: rgba(255, 255, 255, 0.92);
+      }
+      .toast .icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 10px;
+        border: 1px solid rgba(124, 58, 237, 0.25);
+        background: rgba(124, 58, 237, 0.18);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: none;
+      }
+      .toast p {
+        margin: 0;
+      }
+      .toast .t {
+        font-weight: 800;
+        font-size: 13px;
+      }
+      .toast .m {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 2px;
+      }
+      .toast .x {
+        margin-left: auto;
+        width: 30px;
+        height: 30px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.08);
+        cursor: pointer;
+        color: inherit;
+      }
+
+      /* Responsive: sidebar drawer on small screens */
+      .mobileOnly {
+        display: none;
+      }
+      @media (max-width: 920px) {
+        .sidebar {
+          position: fixed;
+          top: 12px;
+          bottom: 12px;
+          left: 12px;
+          transform: translateX(calc(-100% - 14px));
+          transition: transform 0.18s ease;
+          z-index: 40;
+        }
+        .sidebar.open {
+          transform: translateX(0);
+        }
+        .mobileOnly {
+          display: inline-flex;
+        }
+      }
+    </style>
   </head>
+
   <body>
-    <h2>heloo nak tang ids knea smer ng nham bay hx nv</h2>
+    <div class="app">
+      <!-- Sidebar -->
+      <aside class="sidebar" id="sidebar" aria-label="Notes sidebar">
+        <div class="top">
+          <div class="title">
+            <div class="logo" aria-hidden="true"></div>
+            <div style="min-width: 0">
+              <h1>Simple Notes</h1>
+              <div class="sub" id="countText">0 notes • saved offline</div>
+            </div>
+            <div class="spacer"></div>
+            <button
+              class="btn icon mobileOnly"
+              id="closeSb"
+              aria-label="Close sidebar"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div class="row">
+            <input
+              class="input"
+              id="search"
+              type="search"
+              placeholder="Search… (Ctrl/Cmd+F)"
+              aria-label="Search notes"
+            />
+            <button
+              class="btn icon"
+              id="newBtn"
+              title="New (Ctrl/Cmd+N)"
+              aria-label="New note"
+            >
+              ＋
+            </button>
+          </div>
+        </div>
+
+        <div
+          class="list"
+          id="list"
+          role="listbox"
+          aria-label="Notes list"
+        ></div>
+      </aside>
+
+      <!-- Main -->
+      <main class="main" aria-label="Editor">
+        <div class="bar">
+          <button
+            class="btn icon mobileOnly"
+            id="openSb"
+            aria-label="Open sidebar"
+          >
+            ☰
+          </button>
+          <strong>Editor</strong>
+          <div class="spacer"></div>
+          <button class="btn" id="themeBtn">🌗 Theme</button>
+          <button class="btn" id="exportBtn">⬇ Export</button>
+          <label class="btn" style="cursor: pointer">
+            ⬆ Import
+            <input
+              type="file"
+              id="importInput"
+              accept="application/json"
+              style="display: none"
+            />
+          </label>
+        </div>
+
+        <section class="panel">
+          <div class="panelHead">
+            <div class="left">
+              <input
+                class="input"
+                id="titleInput"
+                placeholder="Title…"
+                aria-label="Note title"
+              />
+              <div class="saved" aria-live="polite" title="Autosave status">
+                <span class="dot" id="saveDot" aria-hidden="true"></span>
+                <span id="saveText">Saved</span>
+              </div>
+            </div>
+            <div class="row">
+              <button class="btn" id="saveBtn" title="Save (Ctrl/Cmd+S)">
+                💾 Save
+              </button>
+              <button class="btn danger" id="deleteBtn">🗑 Delete</button>
+            </div>
+          </div>
+
+          <div class="panelBody">
+            <div class="empty" id="emptyState" style="display: none">
+              No note selected. Click <b>＋</b> or press
+              <span class="kbd">Ctrl/Cmd</span> + <span class="kbd">N</span>.
+            </div>
+
+            <textarea
+              id="contentInput"
+              placeholder="Write your note…"
+              aria-label="Note content"
+            ></textarea>
+
+            <div
+              class="row"
+              style="margin-top: 10px; justify-content: space-between"
+            >
+              <span class="sub" id="metaText">—</span>
+              <button class="btn danger" id="clearAllBtn">⚠ Clear all</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Toasts -->
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+
+    <!-- Confirm Modal -->
+    <div
+      class="backdrop"
+      id="backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mTitle"
+      aria-describedby="mDesc"
+    >
+      <div class="modal">
+        <header>
+          <h2 id="mTitle">Confirm</h2>
+          <p id="mDesc">—</p>
+        </header>
+        <div class="content" id="mContent"></div>
+        <div class="actions">
+          <button class="btn" id="mCancel">Cancel</button>
+          <button class="btn primary" id="mOk">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      "use strict";
+
+      /***********************
+       * Helpers
+       ***********************/
+      const $ = (s, r = document) => r.querySelector(s);
+
+      function uid() {
+        return (
+          "n_" +
+          Date.now().toString(36) +
+          "_" +
+          Math.random().toString(36).slice(2, 9)
+        );
+      }
+      function nowISO() {
+        return new Date().toISOString();
+      }
+      function safeJSON(str) {
+        try {
+          return JSON.parse(str);
+        } catch {
+          return null;
+        }
+      }
+      function storageGet(k) {
+        try {
+          return localStorage.getItem(k);
+        } catch {
+          return null;
+        }
+      }
+      function storageSet(k, v) {
+        try {
+          localStorage.setItem(k, v);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+      function storageRemove(k) {
+        try {
+          localStorage.removeItem(k);
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      function formatRelative(iso) {
+        if (!iso) return "—";
+        const d = new Date(iso);
+        const diff = Date.now() - d.getTime();
+        const sec = Math.floor(diff / 1000);
+        if (sec < 10) return "just now";
+        if (sec < 60) return sec + "s ago";
+        const min = Math.floor(sec / 60);
+        if (min < 60) return min + "m ago";
+        const hr = Math.floor(min / 60);
+        if (hr < 24) return hr + "h ago";
+        const day = Math.floor(hr / 24);
+        if (day < 7) return day + "d ago";
+        return d.toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      }
+
+      function download(filename, content, mime) {
+        const blob = new Blob([content], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 500);
+      }
+
+      /***********************
+       * Toast
+       ***********************/
+      const Toast = (() => {
+        const box = $("#toasts");
+        function show(title, msg = "", type = "info", ms = 2200) {
+          const el = document.createElement("div");
+          el.className = "toast";
+          const icon = document.createElement("div");
+          icon.className = "icon";
+          icon.textContent = type === "ok" ? "✓" : type === "err" ? "!" : "i";
+          const main = document.createElement("div");
+          const t = document.createElement("p");
+          t.className = "t";
+          t.textContent = title;
+          const m = document.createElement("p");
+          m.className = "m";
+          m.textContent = msg;
+          const x = document.createElement("button");
+          x.className = "x";
+          x.textContent = "✕";
+          x.setAttribute("aria-label", "Close");
+          x.onclick = () => remove();
+
+          main.appendChild(t);
+          if (msg) main.appendChild(m);
+          el.appendChild(icon);
+          el.appendChild(main);
+          el.appendChild(x);
+          box.appendChild(el);
+
+          const timer = setTimeout(remove, ms);
+          let dead = false;
+          function remove() {
+            if (dead) return;
+            dead = true;
+            clearTimeout(timer);
+            el.style.opacity = "0";
+            el.style.transform = "translateY(6px)";
+            setTimeout(() => el.remove(), 160);
+          }
+        }
+        return { show };
+      })();
+
+      /***********************
+       * Modal Confirm
+       ***********************/
+      const Modal = (() => {
+        const back = $("#backdrop");
+        const title = $("#mTitle");
+        const desc = $("#mDesc");
+        const content = $("#mContent");
+        const ok = $("#mOk");
+        const cancel = $("#mCancel");
+        let resolveFn = null;
+        let lastFocus = null;
+
+        function open({
+          t = "Confirm",
+          d = "",
+          c = "",
+          okText = "OK",
+          danger = false,
+        }) {
+          lastFocus = document.activeElement;
+          title.textContent = t;
+          desc.textContent = d;
+          content.textContent = c;
+          ok.textContent = okText;
+          ok.className = "btn " + (danger ? "danger" : "primary");
+          back.style.display = "flex";
+          setTimeout(() => cancel.focus(), 0);
+          return new Promise((res) => (resolveFn = res));
+        }
+        function close(val) {
+          back.style.display = "none";
+          if (resolveFn) {
+            resolveFn(val);
+            resolveFn = null;
+          }
+          if (lastFocus && lastFocus.focus) lastFocus.focus();
+        }
+        back.addEventListener("click", (e) => {
+          if (e.target === back) close(false);
+        });
+        ok.addEventListener("click", () => close(true));
+        cancel.addEventListener("click", () => close(false));
+        document.addEventListener("keydown", (e) => {
+          if (back.style.display === "flex" && e.key === "Escape") {
+            e.preventDefault();
+            close(false);
+          }
+        });
+        return { open };
+      })();
+
+      /***********************
+       * App State
+       ***********************/
+      const KEY = "simpleNotes.v1";
+      const THEME = "simpleNotes.theme";
+
+      const state = {
+        notes: [],
+        currentId: null,
+        autosaveTimer: null,
+        filters: { q: "" },
+      };
+
+      function normalizeNote(n) {
+        if (!n || typeof n !== "object") return null;
+        const id = String(n.id || "").trim() || uid();
+        const createdAt = n.createdAt ? String(n.createdAt) : nowISO();
+        const updatedAt = n.updatedAt ? String(n.updatedAt) : createdAt;
+        return {
+          id,
+          title: String(n.title ?? "Untitled"),
+          content: String(n.content ?? ""),
+          createdAt,
+          updatedAt,
+        };
+      }
+
+      function load() {
+        const raw = storageGet(KEY);
+        if (!raw) return;
+        const data = safeJSON(raw);
+        if (!data || !Array.isArray(data.notes)) return;
+        state.notes = data.notes.map(normalizeNote).filter(Boolean);
+        if (data.currentId && state.notes.some((n) => n.id === data.currentId))
+          state.currentId = data.currentId;
+      }
+
+      function save() {
+        const ok = storageSet(
+          KEY,
+          JSON.stringify({ notes: state.notes, currentId: state.currentId })
+        );
+        if (!ok)
+          Toast.show(
+            "Storage error",
+            "Could not save. localStorage might be full/blocked.",
+            "err",
+            3500
+          );
+        return ok;
+      }
+
+      function current() {
+        return state.notes.find((n) => n.id === state.currentId) || null;
+      }
+
+      function createNote() {
+        const t = nowISO();
+        const n = {
+          id: uid(),
+          title: "Untitled",
+          content: "",
+          createdAt: t,
+          updatedAt: t,
+        };
+        state.notes.unshift(n);
+        state.currentId = n.id;
+        save();
+        Toast.show("New note", "Created.", "ok");
+      }
+
+      function updateNote(id, patch) {
+        const n = state.notes.find((x) => x.id === id);
+        if (!n) return;
+        Object.assign(n, patch);
+        n.updatedAt = nowISO();
+        save();
+      }
+
+      function deleteNote(id) {
+        const idx = state.notes.findIndex((x) => x.id === id);
+        if (idx === -1) return;
+        state.notes.splice(idx, 1);
+        if (state.currentId === id) {
+          state.currentId = state.notes.length ? state.notes[0].id : null;
+        }
+        save();
+        Toast.show("Deleted", "Note removed.", "ok");
+      }
+
+      function filteredNotes() {
+        const q = state.filters.q.trim().toLowerCase();
+        let arr = state.notes.slice();
+        if (q) {
+          arr = arr.filter((n) =>
+            (n.title + "\n" + n.content).toLowerCase().includes(q)
+          );
+        }
+        // sort: updated newest
+        arr.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+        return arr;
+      }
+
+      /***********************
+       * UI
+       ***********************/
+      const el = {
+        sidebar: $("#sidebar"),
+        openSb: $("#openSb"),
+        closeSb: $("#closeSb"),
+        list: $("#list"),
+        countText: $("#countText"),
+        search: $("#search"),
+
+        newBtn: $("#newBtn"),
+        themeBtn: $("#themeBtn"),
+        exportBtn: $("#exportBtn"),
+        importInput: $("#importInput"),
+
+        title: $("#titleInput"),
+        content: $("#contentInput"),
+        saveDot: $("#saveDot"),
+        saveText: $("#saveText"),
+        metaText: $("#metaText"),
+        empty: $("#emptyState"),
+
+        saveBtn: $("#saveBtn"),
+        deleteBtn: $("#deleteBtn"),
+        clearAllBtn: $("#clearAllBtn"),
+      };
+
+      function setSidebar(open) {
+        el.sidebar.classList.toggle("open", !!open);
+      }
+
+      function markSaving() {
+        el.saveDot.classList.add("saving");
+        el.saveText.textContent = "Saving…";
+      }
+      function markSaved() {
+        el.saveDot.classList.remove("saving");
+        el.saveText.textContent = "Saved";
+      }
+
+      function renderList() {
+        const total = state.notes.length;
+        el.countText.textContent = `${total} note${
+          total === 1 ? "" : "s"
+        } • saved offline`;
+
+        const items = filteredNotes();
+        el.list.innerHTML = "";
+
+        if (!total) {
+          const div = document.createElement("div");
+          div.className = "empty";
+          div.textContent = "No notes yet. Click ＋ or press Ctrl/Cmd + N.";
+          el.list.appendChild(div);
+          return;
+        }
+        if (!items.length) {
+          const div = document.createElement("div");
+          div.className = "empty";
+          div.textContent = "No results. Try a different search.";
+          el.list.appendChild(div);
+          return;
+        }
+
+        for (const n of items) {
+          const it = document.createElement("div");
+          it.className = "item";
+          it.setAttribute("role", "option");
+          it.setAttribute("data-id", n.id);
+          it.setAttribute("aria-selected", String(state.currentId === n.id));
+
+          const t = document.createElement("p");
+          t.className = "itTitle";
+          t.textContent = n.title || "Untitled";
+
+          const p = document.createElement("p");
+          p.className = "itPrev";
+          p.textContent = (n.content || "").trim().slice(0, 140) || "—";
+
+          const time = document.createElement("div");
+          time.className = "itTime";
+          time.textContent = "Updated " + formatRelative(n.updatedAt);
+
+          it.appendChild(t);
+          it.appendChild(p);
+          it.appendChild(time);
+          el.list.appendChild(it);
+        }
+      }
+
+      function renderEditor() {
+        const n = current();
+        const has = !!n;
+
+        el.empty.style.display = has ? "none" : "block";
+        el.title.disabled = !has;
+        el.content.disabled = !has;
+        el.saveBtn.disabled = !has;
+        el.deleteBtn.disabled = !has;
+
+        if (!has) {
+          el.title.value = "";
+          el.content.value = "";
+          el.metaText.textContent = "—";
+          markSaved();
+          return;
+        }
+
+        el.title.value = n.title;
+        el.content.value = n.content;
+        el.metaText.textContent = `Created ${formatRelative(
+          n.createdAt
+        )} • Updated ${formatRelative(n.updatedAt)}`;
+      }
+
+      function render() {
+        renderList();
+        renderEditor();
+      }
+
+      function scheduleAutosave() {
+        const n = current();
+        if (!n) return;
+        markSaving();
+        clearTimeout(state.autosaveTimer);
+        state.autosaveTimer = setTimeout(() => {
+          const c = current();
+          if (!c) return;
+          updateNote(c.id, {
+            title: el.title.value,
+            content: el.content.value,
+          });
+          markSaved();
+          renderList(); // update list preview/time
+          Toast.show("Saved", "Stored locally.", "ok", 1400);
+        }, 450);
+      }
+
+      /***********************
+       * Events
+       ***********************/
+      el.openSb.addEventListener("click", () => setSidebar(true));
+      el.closeSb.addEventListener("click", () => setSidebar(false));
+
+      el.newBtn.addEventListener("click", () => {
+        createNote();
+        render();
+      });
+      el.list.addEventListener("click", (e) => {
+        const item = e.target.closest(".item");
+        if (!item) return;
+        const id = item.getAttribute("data-id");
+        if (id) {
+          state.currentId = id;
+          save();
+          render();
+          if (window.matchMedia("(max-width: 920px)").matches)
+            setSidebar(false);
+        }
+      });
+
+      el.search.addEventListener("input", () => {
+        state.filters.q = el.search.value || "";
+        renderList();
+      });
+
+      el.title.addEventListener("input", scheduleAutosave);
+      el.content.addEventListener("input", scheduleAutosave);
+
+      el.saveBtn.addEventListener("click", () => {
+        const c = current();
+        if (!c) return;
+        markSaving();
+        updateNote(c.id, { title: el.title.value, content: el.content.value });
+        markSaved();
+        Toast.show("Saved", "Manual save.", "ok", 1400);
+        render();
+      });
+
+      el.deleteBtn.addEventListener("click", async () => {
+        const c = current();
+        if (!c) return;
+        const ok = await Modal.open({
+          t: "Delete note",
+          d: "This cannot be undone.",
+          c: `Delete “${(c.title || "Untitled").slice(0, 70)}”?`,
+          okText: "Delete",
+          danger: true,
+        });
+        if (ok) {
+          deleteNote(c.id);
+          render();
+        }
+      });
+
+      el.clearAllBtn.addEventListener("click", async () => {
+        const ok = await Modal.open({
+          t: "Clear all notes",
+          d: "Removes everything from this browser (localStorage).",
+          c: "Tip: Export first if you want backup.",
+          okText: "Clear all",
+          danger: true,
+        });
+        if (ok) {
+          state.notes = [];
+          state.currentId = null;
+          storageRemove(KEY);
+          Toast.show("Cleared", "All notes removed.", "ok");
+          render();
+        }
+      });
+
+      el.exportBtn.addEventListener("click", () => {
+        const payload = { exportedAt: nowISO(), notes: state.notes };
+        download(
+          `simple-notes-backup-${Date.now()}.json`,
+          JSON.stringify(payload, null, 2),
+          "application/json"
+        );
+        Toast.show("Exported", "Downloaded JSON backup.", "ok");
+      });
+
+      el.importInput.addEventListener("change", async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        try {
+          const text = await file.text();
+          const data = safeJSON(text);
+          if (!data) {
+            Toast.show("Import failed", "Invalid JSON.", "err");
+            return;
+          }
+          const incoming = Array.isArray(data.notes)
+            ? data.notes
+            : Array.isArray(data)
+            ? data
+            : null;
+          if (!incoming) {
+            Toast.show("Import failed", "No notes found.", "err");
+            return;
+          }
+
+          const ids = new Set(state.notes.map((n) => n.id));
+          let added = 0,
+            skipped = 0;
+          for (const raw of incoming) {
+            const n = normalizeNote(raw);
+            if (ids.has(n.id)) {
+              skipped++;
+              continue;
+            }
+            ids.add(n.id);
+            state.notes.push(n);
+            added++;
+          }
+          // focus newest updated
+          state.notes.sort(
+            (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+          );
+          state.currentId = state.notes.length ? state.notes[0].id : null;
+          save();
+          Toast.show(
+            "Imported",
+            `Added ${added}, skipped ${skipped}.`,
+            added ? "ok" : "info",
+            3000
+          );
+          render();
+        } catch {
+          Toast.show("Import failed", "Could not read file.", "err");
+        } finally {
+          el.importInput.value = "";
+        }
+      });
+
+      function loadTheme() {
+        const t = storageGet(THEME);
+        document.documentElement.setAttribute(
+          "data-theme",
+          t === "light" || t === "dark" ? t : "dark"
+        );
+      }
+      function toggleTheme() {
+        const cur =
+          document.documentElement.getAttribute("data-theme") || "dark";
+        const next = cur === "dark" ? "light" : "dark";
+        document.documentElement.setAttribute("data-theme", next);
+        storageSet(THEME, next);
+        Toast.show("Theme", `Switched to ${next}.`, "ok", 1400);
+      }
+      el.themeBtn.addEventListener("click", toggleTheme);
+
+      // Keyboard shortcuts
+      document.addEventListener("keydown", (e) => {
+        const isMac = navigator.platform.toLowerCase().includes("mac");
+        const mod = isMac ? e.metaKey : e.ctrlKey;
+
+        if (e.key === "Escape") {
+          setSidebar(false);
+          const a = document.activeElement;
+          if (a && (a.tagName === "INPUT" || a.tagName === "TEXTAREA"))
+            a.blur();
+        }
+        if (mod && e.key.toLowerCase() === "n") {
+          e.preventDefault();
+          createNote();
+          render();
+        }
+        if (mod && e.key.toLowerCase() === "s") {
+          e.preventDefault();
+          const c = current();
+          if (!c) return;
+          markSaving();
+          updateNote(c.id, {
+            title: el.title.value,
+            content: el.content.value,
+          });
+          markSaved();
+          Toast.show("Saved", "Manual save.", "ok", 1400);
+          render();
+        }
+        if (mod && e.key.toLowerCase() === "f") {
+          e.preventDefault();
+          setSidebar(true);
+          el.search.focus();
+          el.search.select();
+        }
+      });
+
+      /***********************
+       * Boot
+       ***********************/
+      loadTheme();
+      load();
+
+      // starter note if empty
+      if (!state.notes.length) {
+        const t = nowISO();
+        state.notes = [
+          {
+            id: uid(),
+            title: "Welcome 👋",
+            content:
+              "This is a simple notes app.\n\n- Create: Ctrl/Cmd+N\n- Search: Ctrl/Cmd+F\n- Save: Ctrl/Cmd+S\n\nEverything is stored in localStorage.",
+            createdAt: t,
+            updatedAt: t,
+          },
+        ];
+        state.currentId = state.notes[0].id;
+        save();
+      }
+      if (!state.currentId && state.notes.length)
+        state.currentId = state.notes[0].id;
+
+      render();
+
+      // localStorage check
+      try {
+        localStorage.setItem("__sn_test__", "1");
+        localStorage.removeItem("__sn_test__");
+      } catch {
+        Toast.show(
+          "Storage blocked",
+          "localStorage unavailable. Notes may not persist.",
+          "err",
+          4200
+        );
+      }
+    </script>
   </body>
 </html>
